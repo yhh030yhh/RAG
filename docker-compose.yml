@@ -1,0 +1,47 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: smartcms-db
+    environment:
+      POSTGRES_USER: smartcms
+      POSTGRES_PASSWORD: smartcms
+      POSTGRES_DB: smartcms
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U smartcms"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    container_name: smartcms-backend
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg://smartcms:smartcms@db:5432/smartcms
+      SECRET_KEY: ${SECRET_KEY:-change-me}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      EMBEDDING_API_KEY: ${EMBEDDING_API_KEY:-}
+      EMBEDDING_BASE_URL: ${EMBEDDING_BASE_URL:-https://api.siliconflow.cn/v1}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-BAAI/bge-m3}
+      STORAGE_DIR: /app/storage
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./storage:/app/storage
+
+  frontend:
+    build: ./frontend
+    container_name: smartcms-frontend
+    depends_on:
+      - backend
+    ports:
+      - "5173:80"
+
+volumes:
+  pgdata:
